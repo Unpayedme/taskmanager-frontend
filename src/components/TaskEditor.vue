@@ -104,6 +104,7 @@ async function submit() {
               outlined
               type="date"
               clearable
+              @change="form.dueDate = $event || null"
               :disable="saving" /></div
           ><div
             ><label for="task-status">Status</label

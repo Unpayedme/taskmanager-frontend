@@ -23,6 +23,61 @@ async function createAccount(page: Page, label: string) {
   ).toBeVisible();
 }
 
+test("due dates committed by the date picker persist, display and can be cleared", async ({
+  page
+}) => {
+  await createAccount(page, "Due Date Tester");
+  await page.getByRole("button", { name: "New task", exact: true }).click();
+  await page.locator("#task-title").fill("Check the due date");
+
+  // Some native date pickers commit a selection with a change event.
+  async function commitDate(value: string) {
+    await page.locator("#task-date").evaluate((element, date) => {
+      (element as HTMLInputElement).value = date;
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+    }, value);
+  }
+  const row = page
+    .locator(".task-row")
+    .filter({ hasText: "Check the due date" });
+  await commitDate("2027-01-15");
+  const created = page.waitForResponse(
+    response =>
+      response.url().endsWith("/api/tasks") &&
+      response.request().method() === "POST"
+  );
+  await page.getByRole("button", { name: "Create task", exact: true }).click();
+  expect((await (await created).json()).task.dueDate).toBe("2027-01-15");
+  await expect(row.locator(".task-due")).toContainText("2027");
+  await expect(row.locator(".task-due")).not.toContainText("No due date");
+
+  await page.reload();
+  await expect(row.locator(".task-due")).toContainText("2027");
+  await page
+    .getByRole("button", { name: "Check the due date", exact: true })
+    .click();
+  await expect(page.locator("#task-date")).toHaveValue("2027-01-15");
+  await commitDate("2027-02-20");
+  const updated = page.waitForResponse(
+    response =>
+      response.url().includes("/api/tasks/") &&
+      response.request().method() === "PATCH"
+  );
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  expect((await (await updated).json()).task.dueDate).toBe("2027-02-20");
+  await expect(row.locator(".task-due")).toContainText("20");
+
+  await page
+    .getByRole("button", { name: "Check the due date", exact: true })
+    .click();
+  await expect(page.locator("#task-date")).toHaveValue("2027-02-20");
+  await commitDate("");
+  await page.getByRole("button", { name: "Save changes", exact: true }).click();
+  await expect(row.locator(".task-due")).toContainText("No due date");
+  await page.reload();
+  await expect(row.locator(".task-due")).toContainText("No due date");
+});
+
 test("task CRUD, search, cached reload and logout work together", async ({
   page
 }, testInfo) => {
