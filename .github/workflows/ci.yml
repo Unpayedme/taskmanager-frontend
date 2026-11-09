@@ -17,6 +17,6 @@ jobs:
       - run: npm run test:proxy
       - run: npm run build:vercel
         env:
-          RAILWAY_API_URL: https://api.example.com
+          BACKEND_API_URL: https://api.example.com
           API_PROXY_SECRET: ci-build-only-proxy-key-51734c2826a914280dae
       - run: npm audit --omit=dev --audit-level=high

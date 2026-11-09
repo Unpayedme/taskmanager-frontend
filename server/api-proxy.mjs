@@ -1,12 +1,12 @@
 import { isIP } from "node:net";
 
 export function deploymentConfig(source = process.env, allowLocalHttp = false) {
-  const url = new URL(
-    source.RAILWAY_API_URL || "https://not-configured.invalid"
-  );
+  // Keep existing deployments working while moving to a provider-neutral name.
+  const backendOrigin = source.BACKEND_API_URL || source.RAILWAY_API_URL;
+  const url = new URL(backendOrigin || "https://not-configured.invalid");
   const local = ["localhost", "127.0.0.1", "[::1]"].includes(url.hostname);
   if (
-    !source.RAILWAY_API_URL ||
+    !backendOrigin ||
     (url.protocol !== "https:" &&
       !(allowLocalHttp && local && url.protocol === "http:")) ||
     url.username ||
@@ -16,7 +16,7 @@ export function deploymentConfig(source = process.env, allowLocalHttp = false) {
     url.hash
   )
     throw new Error(
-      "RAILWAY_API_URL must be an HTTPS origin without credentials, paths, queries or fragments."
+      "BACKEND_API_URL must be an HTTPS origin without credentials, paths, queries or fragments."
     );
   if (
     !source.API_PROXY_SECRET ||
@@ -24,7 +24,7 @@ export function deploymentConfig(source = process.env, allowLocalHttp = false) {
     /replace|change.?me|placeholder|example/i.test(source.API_PROXY_SECRET)
   )
     throw new Error(
-      "Set API_PROXY_SECRET to the same random secret configured on Railway (at least 32 characters)."
+      "Set API_PROXY_SECRET to the same random secret configured on the backend (at least 32 characters)."
     );
   if (source.QCLI_API_BASE_URL && source.QCLI_API_BASE_URL !== "/api")
     throw new Error(

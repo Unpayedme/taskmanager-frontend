@@ -12,16 +12,30 @@ const incoming = (path = "/api/proxy?__path=tasks", options = {}) =>
     headers: { "x-vercel-forwarded-for": "203.0.113.42", ...options.headers }
   });
 
-await test("deployment validation keeps secrets server-side and requires an HTTPS Railway origin", () => {
+await test("deployment validation keeps secrets server-side and requires an HTTPS backend origin", () => {
   const valid = {
-    RAILWAY_API_URL: config.origin,
+    BACKEND_API_URL: config.origin,
     API_PROXY_SECRET: config.secret
   };
   assert.equal(deploymentConfig(valid).origin, config.origin);
+  assert.equal(
+    deploymentConfig({
+      RAILWAY_API_URL: config.origin,
+      API_PROXY_SECRET: config.secret
+    }).origin,
+    config.origin
+  );
+  assert.equal(
+    deploymentConfig({
+      ...valid,
+      RAILWAY_API_URL: "https://old-api.example.com"
+    }).origin,
+    config.origin
+  );
   for (const change of [
-    { RAILWAY_API_URL: "http://api.example.com" },
-    { RAILWAY_API_URL: "https://user:password@api.example.com" },
-    { RAILWAY_API_URL: "https://api.example.com/path" },
+    { BACKEND_API_URL: "http://api.example.com" },
+    { BACKEND_API_URL: "https://user:password@api.example.com" },
+    { BACKEND_API_URL: "https://api.example.com/path" },
     { API_PROXY_SECRET: "replace-with-a-placeholder-secret-123456" },
     { QCLI_API_BASE_URL: config.origin }
   ])
@@ -105,7 +119,7 @@ await test("the proxy does not invent an Origin header for requests that lack on
   );
 });
 
-await test("invalid paths, oversized writes, unsupported methods and missing client IPs never reach Railway", async () => {
+await test("invalid paths, oversized writes, unsupported methods and missing client IPs never reach the backend", async () => {
   const proxy = createApiProxy(config, () => {
     throw new Error("Unexpected network call");
   });
