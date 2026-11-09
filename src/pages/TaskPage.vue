@@ -1,6 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, watch } from "vue";
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue";
 import { useQuasar } from "quasar";
+import { App as NativeApp } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
+import { isAndroid } from "../lib/native-transport";
 import { authState, errorMessage, signOut } from "../lib/api";
 import {
   taskState,
@@ -26,6 +29,27 @@ const editingTask = ref<Task | null>(null);
 const busyTask = ref("");
 const loggingOut = ref(false);
 const mobileNav = ref(false);
+const navMedia = window.matchMedia(
+  "(max-width: 700px), (pointer: coarse) and (max-height: 500px)"
+);
+const compactNav = ref(navMedia.matches);
+let nativeBack: PluginListenerHandle | undefined;
+let pageMounted = true;
+const previousOverflow = document.body.style.overflow;
+function updateNavLayout() {
+  compactNav.value = navMedia.matches;
+  mobileNav.value = false;
+}
+function closeNavOnEscape(event: KeyboardEvent) {
+  if (event.key === "Escape") mobileNav.value = false;
+}
+watch(mobileNav, async open => {
+  document.body.style.overflow =
+    open && compactNav.value ? "hidden" : previousOverflow;
+  await nextTick();
+  if (open) document.querySelector<HTMLButtonElement>(".drawer-close")?.focus();
+  else document.querySelector<HTMLButtonElement>(".mobile-menu")?.focus();
+});
 const today = ref(localDate());
 let searchTimer: ReturnType<typeof setTimeout> | undefined;
 let dateTimer: ReturnType<typeof setInterval> | undefined;
@@ -165,6 +189,22 @@ function syncIfVisible() {
   }
 }
 onMounted(() => {
+  if (isAndroid)
+    void NativeApp.addListener("backButton", event => {
+      if (mobileNav.value) mobileNav.value = false;
+      else if (
+        !editorOpen.value &&
+        !document.querySelector(".q-dialog") &&
+        !event.canGoBack
+      )
+        void NativeApp.minimizeApp();
+    }).then(listener => {
+      if (pageMounted) nativeBack = listener;
+      else void listener.remove();
+    });
+  navMedia.addEventListener("change", updateNavLayout);
+  window.addEventListener("resize", updateNavLayout);
+  window.addEventListener("keydown", closeNavOnEscape);
   window.addEventListener("online", syncIfVisible);
   document.addEventListener("visibilitychange", syncIfVisible);
   dateTimer = setInterval(() => {
@@ -172,6 +212,12 @@ onMounted(() => {
   }, 60000);
 });
 onUnmounted(() => {
+  pageMounted = false;
+  void nativeBack?.remove();
+  navMedia.removeEventListener("change", updateNavLayout);
+  window.removeEventListener("resize", updateNavLayout);
+  window.removeEventListener("keydown", closeNavOnEscape);
+  document.body.style.overflow = previousOverflow;
   clearTimeout(searchTimer);
   clearInterval(dateTimer);
   window.removeEventListener("online", syncIfVisible);
@@ -187,7 +233,19 @@ onUnmounted(() => {
       class="sidebar"
       :class="{ 'sidebar-open': mobileNav }"
       aria-label="Main navigation"
+      id="main-navigation"
+      :inert="compactNav && !mobileNav"
+      :role="compactNav ? 'dialog' : undefined"
+      :aria-modal="compactNav && mobileNav ? true : undefined"
     >
+      <q-btn
+        class="drawer-close"
+        flat
+        round
+        icon="close"
+        aria-label="Close navigation"
+        @click="mobileNav = false"
+      />
       <a href="#/" class="brand"
         ><span class="brand-mark"><q-icon name="done_all" /></span
         >taskmanager<span class="brand-period">.</span></a
@@ -245,7 +303,7 @@ onUnmounted(() => {
       >
     </aside>
 
-    <main class="workspace-main">
+    <main class="workspace-main" :inert="compactNav && mobileNav">
       <header class="workspace-header"
         ><div class="header-location"
           ><q-btn
@@ -255,6 +313,8 @@ onUnmounted(() => {
             icon="menu"
             class="mobile-menu"
             aria-label="Open navigation"
+            aria-controls="main-navigation"
+            :aria-expanded="mobileNav"
             @click="mobileNav = true"
           /><span>Workspace</span><q-icon name="chevron_right" /><strong>{{
             heading

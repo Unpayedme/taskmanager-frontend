@@ -2,23 +2,39 @@ import axios, { type InternalAxiosRequestConfig } from "axios";
 import { reactive } from "vue";
 import type { User } from "../types";
 import { clearTaskCaches } from "./cache";
+import {
+  createNativeAdapter,
+  isAndroid,
+  resolveApiBase
+} from "./native-transport";
 
-export const apiBase = import.meta.env.QCLI_API_BASE_URL || "/api";
+export const apiBase = resolveApiBase(
+  isAndroid,
+  import.meta.env.QCLI_API_BASE_URL,
+  import.meta.env.QCLI_NATIVE_API_BASE_URL
+);
 export const authState = reactive({
   user: null as User | null,
   ready: false,
   error: "",
-  googleEnabled: false
+  googleEnabled: false,
+  googleClientId: ""
 });
 const authClient = axios.create({
   baseURL: apiBase,
   withCredentials: true,
-  timeout: 15000
+  timeout: 15000,
+  ...(isAndroid
+    ? { adapter: createNativeAdapter(apiBase), timeout: 30000 }
+    : {})
 });
 export const api = axios.create({
   baseURL: apiBase,
   withCredentials: true,
-  timeout: 15000
+  timeout: 15000,
+  ...(isAndroid
+    ? { adapter: createNativeAdapter(apiBase), timeout: 30000 }
+    : {})
 });
 let accessToken = "";
 let generation = 0;
@@ -140,12 +156,73 @@ export async function bootstrapSession() {
     authState.ready = true;
   }
   try {
-    authState.googleEnabled = (
-      await authClient.get<{ googleEnabled: boolean }>("/auth/config")
-    ).data.googleEnabled;
+    await loadGoogleConfig();
   } catch {
     authState.googleEnabled = false;
   }
+}
+
+async function loadGoogleConfig() {
+  const { data } = await authClient.get<{
+    googleEnabled: boolean;
+    googleClientId?: string;
+  }>("/auth/config");
+  authState.googleEnabled = data.googleEnabled;
+  authState.googleClientId = data.googleClientId || "";
+}
+
+export async function signInWithGoogle() {
+  if (!isAndroid) {
+    window.location.assign(`${apiBase}/auth/google`);
+    return;
+  }
+  if (!authState.googleClientId) await loadGoogleConfig();
+  if (!authState.googleEnabled || !authState.googleClientId)
+    throw new Error(
+      "Google sign-in is not configured on the server. Please retry after it is configured."
+    );
+  const startedAt = ++generation;
+  const { SocialLogin } = await import("@capgo/capacitor-social-login");
+  await SocialLogin.initialize({
+    google: {
+      webClientId: authState.googleClientId,
+      mode: "online",
+      skipAuthOnlyAuthorizationAfterSignIn: true
+    }
+  });
+  const { data: challenge } = await authClient.post<{
+    challengeId: string;
+    nonce: string;
+  }>("/auth/google/native/challenge");
+  let identity;
+  try {
+    identity = await SocialLogin.login({
+      provider: "google",
+      options: { nonce: challenge.nonce }
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/cancel|dismiss|\b12501\b/i.test(message)) return;
+    throw new Error(
+      "Google sign-in could not be completed. Check the Android OAuth client and signing certificate, then try again."
+    );
+  }
+  if (startedAt !== generation) return;
+  if (identity.result.responseType !== "online" || !identity.result.idToken)
+    throw new Error(
+      "Google did not return an identity token. Please try again."
+    );
+  const idToken = identity.result.idToken;
+  const { data } = await sessionLock(() =>
+    authClient.post<{ user: User; accessToken: string }>(
+      "/auth/google/native",
+      { challengeId: challenge.challengeId, idToken }
+    )
+  );
+  if (startedAt !== generation) return;
+  clearTaskCaches();
+  acceptSession(data);
+  channel?.postMessage({ type: "logout" });
 }
 
 export async function signIn(
@@ -166,4 +243,12 @@ export async function signIn(
 export async function signOut() {
   await sessionLock(() => authClient.post("/auth/logout"));
   clearSession(true);
+  if (isAndroid) {
+    try {
+      const { SocialLogin } = await import("@capgo/capacitor-social-login");
+      await SocialLogin.logout({ provider: "google" });
+    } catch {
+      /* The application session is already revoked; provider UI cleanup is best effort. */
+    }
+  }
 }

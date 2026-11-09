@@ -20,12 +20,15 @@
     "dev": "quasar dev",
     "build": "quasar build",
     "typecheck": "vue-tsc --noEmit",
-    "postinstall": "quasar prepare --silent",
+    "postinstall": "npm ci --prefix src-capacitor --include=dev && quasar prepare --silent",
     "test:e2e": "playwright test",
     "build:vercel": "node scripts/check-deployment.mjs && quasar build",
     "test:proxy": "node --test tests/proxy/*.test.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capgo/capacitor-social-login": "^8.7.7",
     "@quasar/extras": "^2.1.0",
     "axios": "^1.13.6",
     "quasar": "^2.34.0",

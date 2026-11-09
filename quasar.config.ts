@@ -2,7 +2,7 @@ import { defineConfig } from "#q-app";
 
 export default defineConfig(() => ({
   boot: [],
-  css: ["tailwind.css", "app.scss"],
+  css: ["tailwind.css", "app.scss", "mobile.scss"],
   extras: ["material-icons"],
   build: {
     typescript: { strict: true, vueShim: true },
@@ -14,7 +14,10 @@ export default defineConfig(() => ({
     proxy: { "/api": { target: "http://localhost:3000", changeOrigin: true } }
   },
   framework: {
-    config: { notify: { position: "bottom-right", timeout: 3500 } },
+    config: {
+      notify: { position: "bottom-right", timeout: 3500 },
+      capacitor: { backButtonExit: false }
+    },
     plugins: ["Notify", "Dialog"]
   },
   animations: []

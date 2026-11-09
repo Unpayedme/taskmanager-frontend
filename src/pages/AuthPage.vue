@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from "vue";
 import {
-  apiBase,
   authState,
   bootstrapSession,
   errorMessage,
-  signIn
+  signIn,
+  signInWithGoogle
 } from "../lib/api";
+import { isAndroid } from "../lib/native-transport";
 
 const mode = ref<"login" | "register">("login");
 const form = reactive({ name: "", email: "", password: "" });
@@ -47,6 +48,20 @@ async function submit() {
 function switchMode() {
   mode.value = mode.value === "login" ? "register" : "login";
   error.value = "";
+}
+async function googleLogin() {
+  busy.value = true;
+  error.value = "";
+  try {
+    await signInWithGoogle();
+  } catch (cause) {
+    error.value =
+      cause instanceof Error && !("isAxiosError" in cause)
+        ? cause.message
+        : errorMessage(cause);
+  } finally {
+    busy.value = false;
+  }
 }
 </script>
 
@@ -178,13 +193,13 @@ function switchMode() {
             icon-right="arrow_forward"
           />
         </q-form>
-        <template v-if="authState.googleEnabled"
+        <template v-if="authState.googleEnabled || isAndroid"
           ><div class="auth-divider"><span>or keep it simple</span></div
           ><q-btn
             outline
             no-caps
             class="google-button"
-            :href="`${apiBase}/auth/google`"
+            @click="googleLogin"
             :disable="busy"
             ><svg width="19" height="19" viewBox="0 0 24 24" aria-hidden="true">
               <path
