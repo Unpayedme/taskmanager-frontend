@@ -2,6 +2,7 @@ import { defineConfig } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests",
+  testMatch: "**/*.spec.ts",
   fullyParallel: false,
   workers: 1,
   timeout: 45000,
@@ -17,6 +18,11 @@ export default defineConfig({
     }
   ],
   use: {
+    ignoreHTTPSErrors:
+      process.env.E2E_LOCAL_TLS === "1" &&
+      /^https:\/\/(localhost|127\.0\.0\.1):\d+\/?$/.test(
+        process.env.E2E_BASE_URL || ""
+      ),
     baseURL: process.env.E2E_BASE_URL || "http://localhost:5173",
     browserName: "chromium",
     ...(process.env.PLAYWRIGHT_CHANNEL
