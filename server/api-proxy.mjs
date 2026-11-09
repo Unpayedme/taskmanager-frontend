@@ -93,7 +93,10 @@ export function createApiProxy(config, fetchUpstream = fetch) {
         headers.set(name, request.headers.get(name));
     headers.set("x-taskmanager-proxy-secret", config.secret);
     headers.set("x-taskmanager-client-ip", ip);
+    // Vercel can include the rewrite's :path* capture in the function URL.
+    // Routing metadata is not part of the backend's strict task query schema.
     incoming.searchParams.delete("__path");
+    incoming.searchParams.delete("path");
     const target = new URL(`/api/${route}`, config.origin);
     target.search = incoming.search;
 

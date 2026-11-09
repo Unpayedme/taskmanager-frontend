@@ -82,6 +82,24 @@ await test("the proxy preserves task queries, original Origin, authentication an
   assert.equal(response.headers.get("cache-control"), "no-store");
 });
 
+await test("Vercel rewrite metadata is removed while task filters and pagination are preserved", async () => {
+  for (const path of [
+    "/api/proxy?__path=tasks&path=tasks&today=2026-11-09&status=PENDING&page=1&limit=20&search=report",
+    "/api/tasks?path=tasks&__path=tasks&today=2026-11-09&status=PENDING&page=1&limit=20&search=report"
+  ]) {
+    let target;
+    const proxy = createApiProxy(config, async url => {
+      target = url.href;
+      return Response.json({ tasks: [], total: 0 });
+    });
+    assert.equal((await proxy(incoming(path))).status, 200);
+    assert.equal(
+      target,
+      "https://api.example.com/api/tasks?today=2026-11-09&status=PENDING&page=1&limit=20&search=report"
+    );
+  }
+});
+
 await test("Google redirects and multiple Set-Cookie headers are returned to the browser without being followed", async () => {
   const cookies = [
     "tm_oauth=state; Path=/api/auth/google; Secure; HttpOnly; SameSite=Lax",
