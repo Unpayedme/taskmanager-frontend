@@ -89,6 +89,14 @@ for (const width of [320, 360, 375, 390, 414]) {
     await expect(page.locator(".task-title-button")).toBeVisible();
     await expect(page.locator(".task-alert")).not.toBeVisible();
     await noOverflow(page);
+    const header = (await page.locator(".workspace-header").boundingBox())!;
+    const menu = (await page
+      .getByRole("button", { name: "Open navigation" })
+      .boundingBox())!;
+    expect(menu.width).toBeGreaterThanOrEqual(44);
+    expect(menu.height).toBeGreaterThanOrEqual(44);
+    expect(menu.y).toBeGreaterThanOrEqual(header.y);
+    expect(menu.y + menu.height).toBeLessThanOrEqual(header.y + header.height);
     await page.getByRole("button", { name: "Open navigation" }).click();
     await expect(
       page.getByRole("button", { name: "Close navigation" })
@@ -118,6 +126,34 @@ for (const width of [320, 360, 375, 390, 414]) {
       });
   });
 }
+
+test("phone header keeps a full toolbar below the status-bar safe area", async ({
+  page
+}) => {
+  await page.setViewportSize({ width: 360, height: 740 });
+  const device = await page.context().newCDPSession(page);
+  await device.send("Emulation.setSafeAreaInsetsOverride", {
+    insets: { top: 32, bottom: 24, left: 0, right: 0 }
+  });
+  await mockApi(page, true);
+  await page.goto("/");
+  const toolbar = page.locator(".workspace-header");
+  await expect(toolbar.getByText("All tasks", { exact: true })).toBeVisible();
+  const header = (await toolbar.boundingBox())!;
+  const menu = (await page
+    .getByRole("button", { name: "Open navigation" })
+    .boundingBox())!;
+  const date = (await page.locator(".header-date").boundingBox())!;
+  expect(header.y).toBe(0);
+  expect(header.height).toBeGreaterThanOrEqual(96);
+  expect(menu.y).toBeGreaterThanOrEqual(32);
+  expect(date.y).toBeGreaterThanOrEqual(32);
+  expect(menu.y + menu.height).toBeLessThanOrEqual(header.y + header.height);
+  await noOverflow(page);
+  await page.screenshot({
+    path: `.validation/header-insets-${test.info().project.name}.png`
+  });
+});
 
 test("wide desktop keeps the sidebar while phone orientation changes close the drawer", async ({
   page

@@ -12,6 +12,8 @@ Native HTTP uses Android's persistent cookie manager for the existing Secure/Htt
 
 Mobile-specific CSS improves 320–414 px layouts and short touch-screen landscape windows, readable task text, 44–48 px primary controls, filter layouts, scrollable dialogs and safe-area padding. The drawer closes on navigation, Escape and orientation changes, locks background interaction and restores focus. Quasar retains dialog back handling; the Android back button closes the drawer or minimizes the root workspace. Capacitor's SystemBars native inset handling and `adjustResize` support modern Android system bars and the keyboard. Desktop grid and sidebar styles are retained.
 
+Android startup installs the AndroidX splash screen and applies the no-action-bar runtime theme before creating the window, then enables edge-to-edge after Capacitor initialization. A solid workspace background replaces the inherited Quasar splash background; the launch screen uses Task Manager's green checkmark. The phone header reserves a complete 64 px toolbar below the status-bar inset, with a larger menu icon and readable labels. Browser checks cover toolbar bounds with a simulated 32 px status-bar inset; final native rendering still needs confirmation on an installed device.
+
 Relevant frontend files: `src/lib/native-transport.ts`, `src/lib/api.ts`, `src/pages/AuthPage.vue`, `src/pages/TaskPage.vue`, `src/css/mobile.scss`, `quasar.config.ts`, Capacitor config/dependencies, and Android activity/manifest/plugin wiring. Backend changes cover the Google controller/service/routes, nonce repository/migration, startup migrations and expiry maintenance. Tests cover native token verification, replay, transport and the phone layouts.
 
 ## Install and deploy
@@ -88,6 +90,8 @@ Build SPA and Capacitor targets sequentially, because they share generated Quasa
 
 Local verification completed: 25 backend unit/security tests, 11 PostgreSQL integration tests, 10 proxy/native-transport tests, and 38 desktop/mobile browser scenarios passed. The final layout fixtures and contrast changes were also checked separately. Both frontend/backend type/build/lint checks passed, a clean Vercel-style install/build passed, and Java 21 produced the debug APK. The production dependency advisory check reported zero known vulnerabilities. These results do not include a successful live Google login inside an installed APK.
 
+The Android header follow-up (APK 1.0.1, version code 2) passed 24 layout checks, including safe-area padding and minimum menu-button bounds. Frontend formatting, lint, type checking, SPA/Capacitor builds, APK compilation and Android lint passed. Native header appearance still needs confirmation on the phone that reported the issue.
+
 Automated checks include backend signed-token and nonce verification, PostgreSQL migration and atomic challenge consumption, native transport error handling, browser session/task regressions, phone widths 320/360/375/390/414, portrait/landscape navigation, and short-window form/dialog scrolling. Browser tests do not substitute for a real Android keyboard or Google's live account chooser.
 
 On an Android device with Google Play services, after registering the certificate:
@@ -102,4 +106,4 @@ On an Android device with Google Play services, after registering the certificat
 
 Live Android Google sign-in and native cookie restoration still require device verification. The Android OAuth client is now registered, and the deployed frontend proxy successfully returned a native login challenge from the backend. No physical device was connected, and the existing emulator failed to start because its data partition needed roughly 12 GB while only about 4 GB was free. No emulator data was deleted to resolve that limitation.
 
-Sources: [Capgo Google setup](https://github.com/Cap-go/capacitor-social-login/blob/main/docs/setup_google.md), [Capacitor 8 compatibility](https://capgo.app/docs/plugins/social-login/), [Capacitor HTTP](https://capacitorjs.com/docs/apis/http), [SystemBars safe areas](https://capacitorjs.com/docs/apis/system-bars).
+Sources: [Capgo Google setup](https://github.com/Cap-go/capacitor-social-login/blob/main/docs/setup_google.md), [Capacitor 8 compatibility](https://capgo.app/docs/plugins/social-login/), [Capacitor HTTP](https://capacitorjs.com/docs/apis/http), [SystemBars safe areas](https://capacitorjs.com/docs/apis/system-bars), [Android splash-screen migration](https://developer.android.com/develop/ui/views/launch/splash-screen/migrate).

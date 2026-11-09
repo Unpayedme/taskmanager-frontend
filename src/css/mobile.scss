@@ -142,16 +142,20 @@
   }
   .workspace-header {
     height: auto;
-    min-height: 64px;
+    min-height: calc(64px + env(safe-area-inset-top));
     padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right)) 0
       max(12px, env(safe-area-inset-left));
     gap: 8px;
   }
-  .mobile-menu {
+  .workspace-header .mobile-menu {
     display: flex;
     min-width: 44px;
     min-height: 44px;
     padding: 8px;
+    color: #355d4c;
+  }
+  .mobile-menu .q-icon {
+    font-size: 24px;
   }
   .header-location {
     gap: 6px;
@@ -162,12 +166,16 @@
     display: none;
   }
   .header-location strong {
-    font-size: 13px;
+    font-size: 14px;
+    font-weight: 600;
     overflow-wrap: anywhere;
   }
   .header-date {
-    font-size: 11px;
+    font-size: 12px;
     white-space: nowrap;
+  }
+  .header-date .q-icon {
+    font-size: 16px;
   }
   .workspace-content {
     padding: 24px max(12px, env(safe-area-inset-right))
