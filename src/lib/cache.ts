@@ -10,9 +10,16 @@ const taskSchema = z.object({
   dueDate: z
     .string()
     .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .refine(value => {
+      const date = new Date(`${value}T00:00:00.000Z`);
+      return (
+        Number.isFinite(date.getTime()) &&
+        date.toISOString().slice(0, 10) === value
+      );
+    })
     .nullable(),
-  createdAt: z.string(),
-  updatedAt: z.string()
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime()
 });
 const snapshotSchema = z.object({
   query: z.string(),
@@ -27,7 +34,7 @@ const snapshotSchema = z.object({
 });
 const cacheSchema = z.array(snapshotSchema).max(6);
 const key = (userId: string) => `${prefix}${userId}`;
-const queryKey = (query: TaskQuery) =>
+export const queryKey = (query: TaskQuery) =>
   JSON.stringify(
     Object.entries(query)
       .filter(([, value]) => value !== undefined)
@@ -38,7 +45,10 @@ function read(userId: string) {
   try {
     return cacheSchema
       .parse(JSON.parse(localStorage.getItem(key(userId)) || "[]"))
-      .filter(item => Date.now() - item.savedAt < 86400000);
+      .filter(
+        item =>
+          item.savedAt <= Date.now() && Date.now() - item.savedAt < 86400000
+      );
   } catch {
     return [];
   }

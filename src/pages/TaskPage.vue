@@ -92,6 +92,15 @@ watch(search, value => {
 watch([view, status, sort], () => {
   page.value = 1;
 });
+watch([() => taskState.loading, () => taskState.pages], ([loading, pages]) => {
+  if (
+    !loading &&
+    !taskState.stale &&
+    taskState.lastSync &&
+    page.value > Math.max(1, pages)
+  )
+    page.value = Math.max(1, pages);
+});
 function chooseView(value: string) {
   view.value = value;
   status.value = "all";
@@ -127,7 +136,6 @@ function confirmDelete(task: Task) {
       busyTask.value = task.id;
       try {
         await removeTask(task.id);
-        if (page.value > 1 && taskState.tasks.length === 0) page.value--;
         $q.notify({ message: "Task deleted.", color: "primary" });
       } catch (error) {
         $q.notify({ type: "negative", message: errorMessage(error) });
@@ -326,6 +334,7 @@ onUnmounted(() => {
               icon="sync"
               aria-label="Synchronize tasks"
               :loading="taskState.loading"
+              :disable="taskState.loading"
               @click="syncTasks"
               ><q-tooltip>Sync with server</q-tooltip></q-btn
             ></div
@@ -508,11 +517,13 @@ onUnmounted(() => {
               />{{
                 taskState.loading
                   ? "Syncing your tasks…"
-                  : taskState.stale
-                    ? "Cached view"
-                    : taskState.lastSync
-                      ? "All changes synced"
-                      : "Ready when you are"
+                  : taskState.error
+                    ? "Sync needs attention"
+                    : taskState.stale
+                      ? "Cached view"
+                      : taskState.lastSync
+                        ? "All changes synced"
+                        : "Ready when you are"
               }}</span
             ><q-pagination
               v-if="taskState.pages > 1"

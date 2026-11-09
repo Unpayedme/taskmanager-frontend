@@ -4,7 +4,8 @@ import { api, authState, errorMessage } from "../lib/api";
 import {
   readTaskCache,
   writeTaskCache,
-  invalidateTaskCache
+  invalidateTaskCache,
+  queryKey
 } from "../lib/cache";
 import { localDate } from "../lib/dates";
 import type { Task, TaskInput, TaskQuery, TaskPage, TaskStats } from "../types";
@@ -42,6 +43,7 @@ export function resetTasks() {
 export async function loadTasks(query: TaskQuery) {
   const userId = authState.user?.id;
   if (!userId) return;
+  const preserveCurrent = lastQuery && queryKey(lastQuery) === queryKey(query);
   lastQuery = { ...query };
   const request = ++requestNumber;
   controller?.abort();
@@ -49,32 +51,45 @@ export async function loadTasks(query: TaskQuery) {
   const signal = controller.signal;
   const cached = readTaskCache(userId, query);
   Object.assign(taskState, {
-    tasks: cached?.data.tasks ?? [],
-    total: cached?.data.total ?? 0,
-    pages: cached?.data.pages ?? 0,
-    lastSync: cached?.savedAt ?? null,
-    stale: Boolean(cached),
+    tasks: cached?.data.tasks ?? (preserveCurrent ? taskState.tasks : []),
+    total: cached?.data.total ?? (preserveCurrent ? taskState.total : 0),
+    pages: cached?.data.pages ?? (preserveCurrent ? taskState.pages : 0),
+    lastSync: cached?.savedAt ?? (preserveCurrent ? taskState.lastSync : null),
+    stale: Boolean(cached || (preserveCurrent && taskState.lastSync)),
     loading: true,
     error: ""
   });
   try {
-    const [page, stats] = await Promise.all([
+    const [page, stats] = await Promise.allSettled([
       api.get<TaskPage>("/tasks", { params: query, signal }),
       api.get<TaskStats>("/tasks/stats", {
         params: { today: query.today },
         signal
       })
     ]);
-    if (request !== requestNumber || authState.user?.id !== userId) return;
-    Object.assign(taskState, {
-      tasks: page.data.tasks,
-      total: page.data.total,
-      pages: page.data.pages,
-      stats: stats.data,
-      lastSync: Date.now(),
-      stale: false
-    });
-    writeTaskCache(userId, query, page.data);
+    if (
+      signal.aborted ||
+      request !== requestNumber ||
+      authState.user?.id !== userId
+    )
+      return;
+    taskState.stats = stats.status === "fulfilled" ? stats.value.data : null;
+    if (page.status === "fulfilled") {
+      Object.assign(taskState, {
+        tasks: page.value.data.tasks,
+        total: page.value.data.total,
+        pages: page.value.data.pages,
+        lastSync: Date.now(),
+        stale: false
+      });
+      writeTaskCache(userId, query, page.value.data);
+      if (stats.status === "rejected")
+        taskState.error =
+          "Tasks loaded, but dashboard statistics could not be updated. " +
+          errorMessage(stats.reason);
+    } else {
+      taskState.error = errorMessage(page.reason);
+    }
   } catch (error) {
     if (
       axios.isCancel(error) ||

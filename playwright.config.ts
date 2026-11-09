@@ -5,6 +5,17 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   timeout: 45000,
+  projects: [
+    { name: "desktop", use: { viewport: { width: 1280, height: 800 } } },
+    {
+      name: "mobile",
+      use: {
+        viewport: { width: 390, height: 844 },
+        isMobile: true,
+        hasTouch: true
+      }
+    }
+  ],
   use: {
     baseURL: process.env.E2E_BASE_URL || "http://localhost:5173",
     browserName: "chromium",

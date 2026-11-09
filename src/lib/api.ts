@@ -66,7 +66,11 @@ export function refreshSession(): Promise<void> {
       acceptSession(data);
     })
       .catch((error: unknown) => {
-        if (axios.isAxiosError(error) && error.response?.status === 401)
+        if (
+          startedAt === generation &&
+          axios.isAxiosError(error) &&
+          error.response?.status === 401
+        )
           clearSession();
         throw error;
       })
@@ -100,6 +104,7 @@ api.interceptors.response.use(
     ) {
       config.refreshed = true;
       await refreshSession();
+      if (config.sessionGeneration !== generation) throw error;
       config.headers.set("Authorization", `Bearer ${accessToken}`);
       return api(config);
     }

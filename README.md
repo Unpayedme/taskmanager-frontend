@@ -46,23 +46,23 @@ Create a Google OAuth **Web application** client. Add `http://localhost:3000/api
 
 All routes use `/api`. Protected requests require `Authorization: Bearer <accessToken>`. Login, registration, refresh and logout require the exact trusted `Origin` header. Dates use `YYYY-MM-DD`; timestamps use ISO 8601.
 
-| Method | Path | Behavior |
-| --- | --- | --- |
-| GET | `/health` | API health |
-| GET | `/auth/config` | Whether Google sign-in is configured |
-| POST | `/auth/register` | `{name,email,password}`; returns public user and access token |
-| POST | `/auth/login` | `{email,password}`; returns public user and access token |
-| POST | `/auth/refresh` | Rotates the refresh cookie and returns a new access token |
-| POST | `/auth/logout` | Revokes the session family and clears the cookie |
-| GET | `/auth/me` | Current user's public profile |
-| GET | `/auth/google` | Starts Google authorization |
-| GET | `/auth/google/callback` | Completes authorization and redirects to the frontend |
-| GET | `/tasks` | Current user's tasks; search, status, due-date filters, sorting, pagination |
-| GET | `/tasks/stats` | Total, pending, completed, overdue, and pending tasks due today |
-| POST | `/tasks` | `{title,description?,dueDate?,status?}` |
-| GET | `/tasks/:id` | A task belonging to the current user |
-| PATCH | `/tasks/:id` | Update any task fields; omitted fields are preserved |
-| DELETE | `/tasks/:id` | Delete a task belonging to the current user |
+| Method | Path                    | Behavior                                                                    |
+| ------ | ----------------------- | --------------------------------------------------------------------------- |
+| GET    | `/health`               | API health                                                                  |
+| GET    | `/auth/config`          | Whether Google sign-in is configured                                        |
+| POST   | `/auth/register`        | `{name,email,password}`; returns public user and access token               |
+| POST   | `/auth/login`           | `{email,password}`; returns public user and access token                    |
+| POST   | `/auth/refresh`         | Rotates the refresh cookie and returns a new access token                   |
+| POST   | `/auth/logout`          | Revokes the session family and clears the cookie                            |
+| GET    | `/auth/me`              | Current user's public profile                                               |
+| GET    | `/auth/google`          | Starts Google authorization                                                 |
+| GET    | `/auth/google/callback` | Completes authorization and redirects to the frontend                       |
+| GET    | `/tasks`                | Current user's tasks; search, status, due-date filters, sorting, pagination |
+| GET    | `/tasks/stats`          | Total, pending, completed, overdue, and pending tasks due today             |
+| POST   | `/tasks`                | `{title,description?,dueDate?,status?}`                                     |
+| GET    | `/tasks/:id`            | A task belonging to the current user                                        |
+| PATCH  | `/tasks/:id`            | Update any task fields; omitted fields are preserved                        |
+| DELETE | `/tasks/:id`            | Delete a task belonging to the current user                                 |
 
 List filters: `search`, `status=PENDING|COMPLETED`, `due=today|upcoming|overdue|none`, `sort=created|due|title`, `page`, and `limit` (1–100). `today=YYYY-MM-DD` aligns calendar filters with the client's local date. Error responses have `{error:{code,message,details?}}`.
 
@@ -77,6 +77,8 @@ List filters: `search`, `status=PENDING|COMPLETED`, `due=today|upcoming|overdue|
 - Only validated task snapshots are cached in localStorage, keyed by user and list query. Caches hold at most six pages, expire after 24 hours, and clear on logout or account changes. Tokens and passwords are never saved there. The API refreshes cached pages on load, reconnection, tab focus, manual sync and successful mutations. Offline views are read-only snapshots; changes must succeed on the backend.
 
 ## Validation
+
+See the [9 November 2026 application audit](docs/application-audit-2026-11-09.md) for verified coverage, resolved findings and release limitations.
 
 ```powershell
 # backend
